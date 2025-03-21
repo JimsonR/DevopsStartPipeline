@@ -7,7 +7,10 @@ trigger:
 - main
 
 pool:
-  vmImage: ubuntu-latest
+  # vmImage: ubuntu-latest
+  name: Test Agent  # Change to your self-hosted agent pool name
+  demands:
+    - agent.os -equals Windows
 
 steps:
 - script: echo Hello, world!
