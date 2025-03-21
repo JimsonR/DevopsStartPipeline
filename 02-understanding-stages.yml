@@ -23,7 +23,7 @@ stages:
   jobs:
   - job: DevDeployJob
     steps:
-    - script: echoo DevDeployJob
+    - script: echo DevDeployJob
 - stage: QADeploy
   jobs:
     - job: QADeployJob
