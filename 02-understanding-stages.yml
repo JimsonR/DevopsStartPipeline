@@ -18,8 +18,11 @@ stages:
     - script: echo Build FirstJob
     - script: echo $(PipelineLevelVariable)
   - job: SecondJob
+    variables:
+      environment: JobLevelVariable
     steps:
     - script: echo Build SecondJob
+    - script: echo $(environment)
 - stage: DevDeploy
   variables:
     environment: Dev
