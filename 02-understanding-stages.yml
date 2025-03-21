@@ -22,7 +22,18 @@ stages:
     - script: echo $(Build.BuildId)
     - script: echo $(Build.SourcesDirectory)
     - script: dir /s "$(System.DefaultWorkingDirectory)"
-    - script: echo $(System.ArtifactStagingDirectory)
+    - script: echo $(Build.ArtifactStagingDirectory)
+    - script: dir /s "$(Build.ArtifactStagingDirectory)"
+
+    - task: CopyFiles@2
+      inputs:
+        SourceFolder: '$(System.DefaultWorkingDirectory)'
+        Contents: |
+          **/*.yaml
+          **/*.tf
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+    - script: dir /s "$(Build.ArtifactStagingDirectory)"
+
   # - job: SecondJob
   #   variables:
   #     environment: JobLevelVariable
