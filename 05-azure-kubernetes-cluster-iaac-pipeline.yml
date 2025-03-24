@@ -37,18 +37,8 @@ steps:
     else
       echo "Storage account exists."
     fi
+  displayName: 'Create Storage Account and Resource Group'
 
-    echo "Checking if storage container exists..."
-    if ! az storage container exists --name storageaccjimsoncontainer --account-name storageaccjimsonxyz --auth-mode login --output none; then
-      echo "Container not found. Creating..."
-      az storage container create \
-        --name storageaccjimsoncontainer \
-        --account-name storageaccjimsonxyz \
-        --auth-mode login
-    else
-      echo "Container exists."
-    fi
-  displayName: 'Create Storage Account and Container'
 
 
 
