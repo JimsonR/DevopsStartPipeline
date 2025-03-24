@@ -11,6 +11,9 @@ steps:
 
 # Create Azure Storage Account & Container if not exists
 - script: |
+    echo "Setting correct subscription..."
+    az account set --subscription "fbccdf0c-3db4-454b-a6f3-0713e306b7f5"
+    
     echo "Checking if resource group exists..."
     az group show --name terraform-backend-rg --output none || az group create --name terraform-backend-rg --location westeurope
     
@@ -50,7 +53,7 @@ steps:
     backendServiceArm: 'azure-resource-manager-service-connection'
     backendAzureRmTenantId: '4d143b55-605d-4af2-a581-12ee448bba20'
     backendAzureRmSubscriptionId: 'fbccdf0c-3db4-454b-a6f3-0713e306b7f5'
-    ensureBackend: true
+    # ensureBackend: true
     backendAzureRmResourceGroupName: 'terraform-backend-rg'
     backendAzureRmResourceGroupLocation: 'westeurope'
     backendAzureRmStorageAccountName: 'storageaccjimsonxyz'
