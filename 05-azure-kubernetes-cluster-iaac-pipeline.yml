@@ -1,64 +1,77 @@
+# Starter pipeline
 trigger:
 - main
 
 pool:
-  # vmImage: ubuntu-latest
-  name: test Agent
-
-variables:
-  azureSubscription: 'azure-resource-manager-service-connection'  # Name of your Azure subscription
-  resourceGroup: 'terraform-backend-rg'
-  storageAccount: 'storageaccjimsonxyz'
-  containerName: 'storageaccjimsoncontainer'
-  location: 'westeurope'
+  name: Test Agent  # Using self-hosted Windows agent
 
 steps:
+# Run a one-line script
+- script: echo Hello, world!
+  displayName: 'Run a one-line script'
+
+# Create Storage Account & Container if not exists (Windows)
 - task: AzureCLI@2
-  displayName: 'Login to Azure CLI'
+  displayName: 'Create Storage Account and Container if Not Exists'
   inputs:
-    azureSubscription: $(azureSubscription)
-    scriptType: 'bash'
+    azureSubscription: 'azure-resource-manager-service-connection'
+    scriptType: 'pscore'  # Use PowerShell Core for Windows
     scriptLocation: 'inlineScript'
     inlineScript: |
       # Check if resource group exists
-      if [ "$(az group exists --name $(resourceGroup))" = "false" ]; then
-        az group create --name $(resourceGroup) --location $(location)
-      fi
-      
+      $rg = az group exists --name terraform-backend-rg
+      if ($rg -eq "false") {
+        az group create --name terraform-backend-rg --location westeurope
+      }
+
       # Check if storage account exists
-      if ! az storage account show --name $(storageAccount) --resource-group $(resourceGroup) > /dev/null 2>&1; then
-        az storage account create \
-          --name $(storageAccount) \
-          --resource-group $(resourceGroup) \
-          --sku Standard_RAGRS \
-          --kind StorageV2 \
-          --encryption-services blob \
-          --access-tier hot \
-          --https-only true \
-          --min-tls-version TLS1_2 \
-          --location $(location)
-      fi
-      
-      # Create storage container
-      az storage container create \
-        --name $(containerName) \
-        --account-name $(storageAccount)
-      
+      $storageExists = az storage account show --name storageaccjimsonxyz --resource-group terraform-backend-rg --query "name" -o tsv
+      if (-not $storageExists) {
+        az storage account create `
+          --name storageaccjimsonxyz `
+          --resource-group terraform-backend-rg `
+          --sku Standard_RAGRS `
+          --kind StorageV2 `
+          --location westeurope `
+          --encryption-services blob `
+          --https-only true `
+          --allow-blob-public-access false `
+          --min-tls-version TLS1_2
+      }
+
+      # Create storage container if not exists
+      $containerExists = az storage container list --account-name storageaccjimsonxyz --query "[?name=='storageaccjimsoncontainer'].name" -o tsv
+      if (-not $containerExists) {
+        az storage container create `
+          --name storageaccjimsoncontainer `
+          --account-name storageaccjimsonxyz `
+          --auth-mode login
+      }
+
+# Download SSH public key securely
+- task: DownloadSecureFile@1
+  name: publickey
+  inputs:
+    secureFile: 'azure_rsa.pub'
+    retryCount: '5'
+
+# Terraform Init - Initialize with Backend Config
 - task: TerraformCLI@2
-  displayName: 'Terraform Init'
   inputs:
     command: 'init'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/configuration/iaac/azure/kubernetes'
+    commandOptions: '-var client_id=$(client_id) -var client_secret=$(client_secret) -var ssh_public_key=$(publickey.secureFilePath)'
     backendType: 'azurerm'
-    backendServiceArm: $(azureSubscription)
-    ensureBackend: false
-    backendAzureRmSubscriptionId: $(azureSubscription)
-    backendAzureRmResourceGroupName: $(resourceGroup)
-    backendAzureRmStorageAccountName: $(storageAccount)
-    backendAzureRmContainerName: $(containerName)
-    backendAzureRmKey: 'kubernetes-dev.tfstate'
+    backendServiceArm: 'azure-resource-manager-service-connection'
+    backendAzureRmTenantId: '4d143b55-605d-4af2-a581-12ee448bba20'
+    backendAzureRmSubscriptionId: 'fbccdf0c-3db4-454b-a6f3-0713e306b7f5'
+    backendAzureRmResourceGroupName: 'terraform-backend-rg'
+    backendAzureRmStorageAccountName: 'storageaccjimsonxyz'
+    backendAzureRmContainerName: 'storageaccjimsoncontainer'
+    backendAzureRmKey: 'kuberenetes-dev.tfstate'
 
-- task: TerraformCLI@2
-  displayName: 'Terraform Apply'
-  inputs:
-    command: 'apply'
-    workingDirectory: '$(System.DefaultWorkingDirectory)'
+# Run a multi-line script
+- script: |
+    echo Add other tasks to build, test, and deploy your project.
+    echo See https://aka.ms/yaml
+  displayName: 'Run a multi-line script'
