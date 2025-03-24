@@ -9,41 +9,47 @@ steps:
 - script: echo Hello, world!
   displayName: 'Run a one-line script'
 
-# Create Azure Storage Account & Container if not exists using PowerShell
-- powershell: |
-    Write-Host "Setting correct subscription..."
+- script: |
+    echo "Setting correct subscription..."
     az account set --subscription "fbccdf0c-3db4-454b-a6f3-0713e306b7f5"
-    
-    Write-Host "Checking if resource group exists..."
-    az group show --name terraform-backend-rg --output none
-    if ($LASTEXITCODE -ne 0) {
-        az group create --name terraform-backend-rg --location westeurope
-    }
-    
-    Write-Host "Checking if storage account exists..."
-    az storage account show --name storageaccjimsonxyz --resource-group terraform-backend-rg --output none
-    if ($LASTEXITCODE -ne 0) {
-        az storage account create `
-          --name storageaccjimsonxyz `
-          --resource-group terraform-backend-rg `
-          --sku Standard_RAGRS `
-          --kind StorageV2 `
-          --location westeurope `
-          --encryption-services blob `
-          --https-only true `
-          --allow-blob-public-access false `
-          --min-tls-version TLS1_2
-    }
 
-    Write-Host "Checking if storage container exists..."
-    az storage container exists --name storageaccjimsoncontainer --account-name storageaccjimsonxyz --auth-mode login --output none
-    if ($LASTEXITCODE -ne 0) {
-        az storage container create `
-          --name storageaccjimsoncontainer `
-          --account-name storageaccjimsonxyz `
-          --auth-mode login
-    }
+    echo "Checking if resource group exists..."
+    if ! az group show --name terraform-backend-rg --output none; then
+      echo "Resource group not found. Creating..."
+      az group create --name terraform-backend-rg --location westeurope
+    else
+      echo "Resource group exists."
+    fi
+
+    echo "Checking if storage account exists..."
+    if ! az storage account show --name storageaccjimsonxyz --resource-group terraform-backend-rg --output none; then
+      echo "Storage account not found. Creating..."
+      az storage account create \
+        --name storageaccjimsonxyz \
+        --resource-group terraform-backend-rg \
+        --sku Standard_RAGRS \
+        --kind StorageV2 \
+        --location westeurope \
+        --encryption-services blob \
+        --https-only true \
+        --allow-blob-public-access false \
+        --min-tls-version TLS1_2
+    else
+      echo "Storage account exists."
+    fi
+
+    echo "Checking if storage container exists..."
+    if ! az storage container exists --name storageaccjimsoncontainer --account-name storageaccjimsonxyz --auth-mode login --output none; then
+      echo "Container not found. Creating..."
+      az storage container create \
+        --name storageaccjimsoncontainer \
+        --account-name storageaccjimsonxyz \
+        --auth-mode login
+    else
+      echo "Container exists."
+    fi
   displayName: 'Create Storage Account and Container'
+
 
 
 # Download SSH Public Key
