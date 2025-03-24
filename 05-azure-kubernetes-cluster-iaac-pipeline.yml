@@ -24,15 +24,15 @@ steps:
     echo "Checking if storage account exists..."
     if ! az storage account show --name storageaccjimsonxyz --resource-group terraform-backend-rg --output none; then
       echo "Storage account not found. Creating..."
-      az storage account create \
-        --name storageaccjimsonxyz \
-        --resource-group terraform-backend-rg \
-        --sku Standard_RAGRS \
-        --kind StorageV2 \
-        --location westeurope \
-        --encryption-services blob \
-        --https-only true \
-        --allow-blob-public-access false \
+      az storage account create 
+        --name storageaccjimsonxyz 
+        --resource-group terraform-backend-rg 
+        --sku Standard_RAGRS 
+        --kind StorageV2 
+        --location westeurope 
+        --encryption-services blob 
+        --https-only true 
+        --allow-blob-public-access false 
         --min-tls-version TLS1_2
     else
       echo "Storage account exists."
