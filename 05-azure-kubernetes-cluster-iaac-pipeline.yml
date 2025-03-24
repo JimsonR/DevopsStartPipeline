@@ -15,7 +15,7 @@ steps:
   displayName: 'Create Storage Account and Container if Not Exists'
   inputs:
     azureSubscription: 'azure-resource-manager-service-connection'
-    scriptType: 'pscore'  # Use PowerShell Core for Windows
+    scriptType: 'ps'  # Use PowerShell Core for Windows
     scriptLocation: 'inlineScript'
     inlineScript: |
       # Check if resource group exists
