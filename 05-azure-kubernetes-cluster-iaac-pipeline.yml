@@ -6,56 +6,41 @@ pool:
   name: Test Agent  # Using self-hosted Windows agent
 
 steps:
-# Run a one-line script
 - script: echo Hello, world!
   displayName: 'Run a one-line script'
 
-# Create Storage Account & Container if not exists (Windows)
-- task: AzureCLI@2
-  displayName: 'Create Storage Account and Container if Not Exists'
-  inputs:
-    azureSubscription: 'azure-resource-manager-service-connection'
-    scriptType: 'ps'  # Use PowerShell Core for Windows
-    scriptLocation: 'inlineScript'
-    inlineScript: |
-      # Check if resource group exists
-      $rg = az group exists --name terraform-backend-rg
-      if ($rg -eq "false") {
-        az group create --name terraform-backend-rg --location westeurope
-      }
+# Create Azure Storage Account & Container if not exists
+- script: |
+    echo "Checking if resource group exists..."
+    az group show --name terraform-backend-rg --output none || az group create --name terraform-backend-rg --location westeurope
+    
+    echo "Checking if storage account exists..."
+    az storage account show --name storageaccjimsonxyz --resource-group terraform-backend-rg --output none || az storage account create `
+      --name storageaccjimsonxyz `
+      --resource-group terraform-backend-rg `
+      --sku Standard_RAGRS `
+      --kind StorageV2 `
+      --location westeurope `
+      --encryption-services blob `
+      --https-only true `
+      --allow-blob-public-access false `
+      --min-tls-version TLS1_2
 
-      # Check if storage account exists
-      $storageExists = az storage account show --name storageaccjimsonxyz --resource-group terraform-backend-rg --query "name" -o tsv
-      if (-not $storageExists) {
-        az storage account create `
-          --name storageaccjimsonxyz `
-          --resource-group terraform-backend-rg `
-          --sku Standard_RAGRS `
-          --kind StorageV2 `
-          --location westeurope `
-          --encryption-services blob `
-          --https-only true `
-          --allow-blob-public-access false `
-          --min-tls-version TLS1_2
-      }
+    echo "Checking if storage container exists..."
+    az storage container exists --name storageaccjimsoncontainer --account-name storageaccjimsonxyz --auth-mode login --output none || az storage container create `
+      --name storageaccjimsoncontainer `
+      --account-name storageaccjimsonxyz `
+      --auth-mode login
+  displayName: 'Create Storage Account and Container'
 
-      # Create storage container if not exists
-      $containerExists = az storage container list --account-name storageaccjimsonxyz --query "[?name=='storageaccjimsoncontainer'].name" -o tsv
-      if (-not $containerExists) {
-        az storage container create `
-          --name storageaccjimsoncontainer `
-          --account-name storageaccjimsonxyz `
-          --auth-mode login
-      }
-
-# Download SSH public key securely
+# Download SSH Public Key
 - task: DownloadSecureFile@1
   name: publickey
   inputs:
     secureFile: 'azure_rsa.pub'
     retryCount: '5'
 
-# Terraform Init - Initialize with Backend Config
+# Initialize Terraform
 - task: TerraformCLI@2
   inputs:
     command: 'init'
@@ -65,12 +50,15 @@ steps:
     backendServiceArm: 'azure-resource-manager-service-connection'
     backendAzureRmTenantId: '4d143b55-605d-4af2-a581-12ee448bba20'
     backendAzureRmSubscriptionId: 'fbccdf0c-3db4-454b-a6f3-0713e306b7f5'
+    ensureBackend: true
     backendAzureRmResourceGroupName: 'terraform-backend-rg'
+    backendAzureRmResourceGroupLocation: 'westeurope'
     backendAzureRmStorageAccountName: 'storageaccjimsonxyz'
     backendAzureRmContainerName: 'storageaccjimsoncontainer'
     backendAzureRmKey: 'kuberenetes-dev.tfstate'
+    allowTelemetryCollection: true
 
-# Run a multi-line script
+# Additional Tasks
 - script: |
     echo Add other tasks to build, test, and deploy your project.
     echo See https://aka.ms/yaml
