@@ -9,32 +9,42 @@ steps:
 - script: echo Hello, world!
   displayName: 'Run a one-line script'
 
-# Create Azure Storage Account & Container if not exists
-- script: |
-    echo "Setting correct subscription..."
+# Create Azure Storage Account & Container if not exists using PowerShell
+- powershell: |
+    Write-Host "Setting correct subscription..."
     az account set --subscription "fbccdf0c-3db4-454b-a6f3-0713e306b7f5"
     
-    echo "Checking if resource group exists..."
-    az group show --name terraform-backend-rg --output none || az group create --name terraform-backend-rg --location westeurope
+    Write-Host "Checking if resource group exists..."
+    az group show --name terraform-backend-rg --output none
+    if ($LASTEXITCODE -ne 0) {
+        az group create --name terraform-backend-rg --location westeurope
+    }
     
-    echo "Checking if storage account exists..."
-    az storage account show --name storageaccjimsonxyz --resource-group terraform-backend-rg --output none || az storage account create `
-      --name storageaccjimsonxyz `
-      --resource-group terraform-backend-rg `
-      --sku Standard_RAGRS `
-      --kind StorageV2 `
-      --location westeurope `
-      --encryption-services blob `
-      --https-only true `
-      --allow-blob-public-access false `
-      --min-tls-version TLS1_2
+    Write-Host "Checking if storage account exists..."
+    az storage account show --name storageaccjimsonxyz --resource-group terraform-backend-rg --output none
+    if ($LASTEXITCODE -ne 0) {
+        az storage account create `
+          --name storageaccjimsonxyz `
+          --resource-group terraform-backend-rg `
+          --sku Standard_RAGRS `
+          --kind StorageV2 `
+          --location westeurope `
+          --encryption-services blob `
+          --https-only true `
+          --allow-blob-public-access false `
+          --min-tls-version TLS1_2
+    }
 
-    echo "Checking if storage container exists..."
-    az storage container exists --name storageaccjimsoncontainer --account-name storageaccjimsonxyz --auth-mode login --output none || az storage container create `
-      --name storageaccjimsoncontainer `
-      --account-name storageaccjimsonxyz `
-      --auth-mode login
+    Write-Host "Checking if storage container exists..."
+    az storage container exists --name storageaccjimsoncontainer --account-name storageaccjimsonxyz --auth-mode login --output none
+    if ($LASTEXITCODE -ne 0) {
+        az storage container create `
+          --name storageaccjimsoncontainer `
+          --account-name storageaccjimsonxyz `
+          --auth-mode login
+    }
   displayName: 'Create Storage Account and Container'
+
 
 # Download SSH Public Key
 - task: DownloadSecureFile@1
