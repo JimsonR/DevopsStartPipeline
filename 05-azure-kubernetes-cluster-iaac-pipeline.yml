@@ -10,41 +10,41 @@ stages:
   jobs:
   - job: AzureSetup
     steps:
-    - task: AzureCLI@2
-      inputs:
-        azureSubscription: 'azure-resource-manager-service-connection'
-        scriptType: 'bash'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          echo "Logging into Azure..."
-          az account show --output table
+    # - task: AzureCLI@2
+    #   inputs:
+    #     azureSubscription: 'azure-resource-manager-service-connection'
+    #     scriptType: 'bash'
+    #     scriptLocation: 'inlineScript'
+    #     inlineScript: |
+    #       echo "Logging into Azure..."
+    #       az account show --output table
 
-    - script: |
-        echo "Checking if resource group exists..."
-        if ! az group show --name terraform-backend-rg --output none; then
-          echo "Resource group not found. Creating..."
-          az group create --name terraform-backend-rg --location westeurope
-        else
-          echo "Resource group exists."
-        fi
+    # - script: |
+    #     echo "Checking if resource group exists..."
+    #     if ! az group show --name terraform-backend-rg --output none; then
+    #       echo "Resource group not found. Creating..."
+    #       az group create --name terraform-backend-rg --location westeurope
+    #     else
+    #       echo "Resource group exists."
+    #     fi
 
-        echo "Checking if storage account exists..."
-        if ! az storage account show --name storageaccjimsonxyz --resource-group terraform-backend-rg --output none; then
-          echo "Storage account not found. Creating..."
-          az storage account create \
-            --name storageaccjimsonxyz \
-            --resource-group terraform-backend-rg \
-            --sku Standard_RAGRS \
-            --kind StorageV2 \
-            --location westeurope \
-            --encryption-services blob \
-            --https-only true \
-            --allow-blob-public-access false \
-            --min-tls-version TLS1_2
-        else
-          echo "Storage account exists."
-        fi
-      displayName: 'Create Storage Account and Resource Group'
+    #     echo "Checking if storage account exists..."
+    #     if ! az storage account show --name storageaccjimsonxyz --resource-group terraform-backend-rg --output none; then
+    #       echo "Storage account not found. Creating..."
+    #       az storage account create \
+    #         --name storageaccjimsonxyz \
+    #         --resource-group terraform-backend-rg \
+    #         --sku Standard_RAGRS \
+    #         --kind StorageV2 \
+    #         --location westeurope \
+    #         --encryption-services blob \
+    #         --https-only true \
+    #         --allow-blob-public-access false \
+    #         --min-tls-version TLS1_2
+    #     else
+    #       echo "Storage account exists."
+    #     fi
+    #   displayName: 'Create Storage Account and Resource Group'
 
     - task: DownloadSecureFile@1
       name: publickey
