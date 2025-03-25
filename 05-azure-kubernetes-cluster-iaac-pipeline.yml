@@ -17,7 +17,6 @@ stages:
         scriptLocation: 'inlineScript'
         inlineScript: |
           echo "Logging into Azure..."
-          az account set --subscription "fbccdf0c-3db4-454b-a6f3-0713e306b7f5"
           az account show --output table
 
     - script: |
@@ -74,6 +73,6 @@ stages:
         allowTelemetryCollection: true
 
     - script: |
-        echo Add other tasks to build, test, and deploy your project.
-        echo See https://aka.ms/yaml
+        echo "Add other tasks to build, test, and deploy your project."
+        echo "See https://aka.ms/yaml"
       displayName: 'Run a multi-line script'
