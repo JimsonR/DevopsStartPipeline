@@ -43,7 +43,13 @@ stages:
           else
             echo "Storage account exists."
           fi
-      displayName: 'Create Storage Account and Resource Group'
+
+          echo "Creating storage container if it doesn't exist..."
+          az storage container create \
+            --name storageaccjimsoncontainer \
+            --account-name storageaccjimsonxyz \
+            --auth-mode login
+      displayName: 'Create Azure Resources'
 
     - task: DownloadSecureFile@1
       name: publickey
@@ -51,25 +57,6 @@ stages:
         secureFile: 'azure_rsa.pub'
         retryCount: '5'
 
-- stage: Terraform
-  jobs:
-  - job: TerraformJob
-    steps:
-    - task: TerraformCLI@2
-      inputs:
-        command: 'init'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/configuration/iaac/azure/kubernetes'
-        commandOptions: '-var client_id=$(client_id) -var client_secret=$(client_secret) -var ssh_public_key=$(publickey.secureFilePath)'
-        backendType: 'azurerm'
-        backendServiceArm: 'azure-resource-manager-service-connection'
-        backendAzureRmTenantId: '4d143b55-605d-4af2-a581-12ee448bba20'
-        backendAzureRmSubscriptionId: 'fbccdf0c-3db4-454b-a6f3-0713e306b7f5'
-        backendAzureRmResourceGroupName: 'terraform-backend-rg'
-        backendAzureRmResourceGroupLocation: 'westeurope'
-        backendAzureRmStorageAccountName: 'storageaccjimsonxyz'
-        backendAzureRmContainerName: 'storageaccjimsoncontainer'
-        backendAzureRmKey: 'kubernetes-dev.tfstate'
-        allowTelemetryCollection: true
 
     - script: |
         echo "Add other tasks to build, test, and deploy your project."
