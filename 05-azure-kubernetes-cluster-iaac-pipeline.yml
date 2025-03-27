@@ -6,7 +6,7 @@ pool:
 
 variables:
   TF_WORKING_DIR: '$(System.DefaultWorkingDirectory)/configuration/iaac/azure/kubernetes'
-  CLEAN_KEY_PATH: '$(System.DefaultWorkingDirectory)/cleaned_ssh_key.pub'
+  SSH_KEY_PATH: '$(System.DefaultWorkingDirectory)/cleaned_ssh_key.pub'
 
 stages:
 - stage: Setup
