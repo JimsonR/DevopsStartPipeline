@@ -1,7 +1,9 @@
 variable client_id {}
 variable client_secret {}
-variable ssh_public_key {}
-
+variable "ssh_public_key" {
+  type        = string
+  description = "Path to the SSH public key file"
+}
 variable environment {
     default = "dev"
 }
