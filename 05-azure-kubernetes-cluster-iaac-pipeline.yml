@@ -52,7 +52,7 @@ stages:
     steps:
     - bash: |
         echo "=== VERIFYING KEY PATH ==="
-        cat $(CLEAN_KEY_PATH)
+        cat $(SSH_KEY_PATH)
 
         echo "Using SSH key at: $(SSH_KEY_PATH)"
         echo "Current directory: $(pwd)"
