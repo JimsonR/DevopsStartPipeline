@@ -6,7 +6,7 @@ pool:
 
 variables:
   TF_WORKING_DIR: '$(System.DefaultWorkingDirectory)/configuration/iaac/azure/kubernetes'
-  SSH_KEY_PATH: '$(System.DefaultWorkingDirectory)/cleaned_ssh_key.pub'
+  CLEAN_KEY_PATH: '$(Pipeline.Workspace)/cleaned_ssh_key.pub'  # Changed to Pipeline.Workspace
 
 stages:
 - stage: Setup
@@ -19,32 +19,37 @@ stages:
         secureFile: 'azure_rsa.pub'
     
     - bash: |
+        # Create directory if it doesn't exist
+        mkdir -p $(Pipeline.Workspace)
+        
         # Validate and clean the key file
         if ! ssh-keygen -l -f $(publickey.secureFilePath); then
           echo "##vso[task.logissue type=error]Invalid SSH key format"
           exit 1
         fi
         
-        # Create cleaned version in the agent's temp directory
-        TEMP_KEY_PATH="$(Agent.TempDirectory)/cleaned_ssh_key.pub"
-        sed 's/\r$//' $(publickey.secureFilePath) > $TEMP_KEY_PATH
-        chmod 644 $TEMP_KEY_PATH
+        # Create cleaned version in pipeline workspace
+        sed 's/\r$//' $(publickey.secureFilePath) > $(CLEAN_KEY_PATH)
+        chmod 644 $(CLEAN_KEY_PATH)
         
-        # Set output variable with the exact path
-        echo "##vso[task.setvariable variable=SSH_KEY_PATH;isOutput=true]$TEMP_KEY_PATH"
-        echo "Key prepared at: $TEMP_KEY_PATH"
+        # Verify the cleaned file
+        echo "Key created at: $(CLEAN_KEY_PATH)"
+        ls -la $(CLEAN_KEY_PATH)
+        echo "Key content:"
+        cat $(CLEAN_KEY_PATH)
+        
+        # Set output variable
+        echo "##vso[task.setvariable variable=SSH_KEY_PATH;isOutput=true]$(CLEAN_KEY_PATH)"
       displayName: 'Prepare SSH Key'
     - bash: |
-        echo "=== ENVIRONMENT DEBUG ==="
-        echo "Agent.TempDirectory: $(Agent.TempDirectory)"
-        echo "Working directory: $(System.DefaultWorkingDirectory)"
-        echo "All files in temp dir:"
-        ls -la $(Agent.TempDirectory)
-        echo "Key file details:"
-        ls -la $(SSH_KEY_PATH)
-        echo "File content:"
-        cat $(SSH_KEY_PATH)
-      displayName: 'Debug File Paths'
+        echo "=== FINAL VERIFICATION ==="
+        echo "Terraform will attempt to read: $(SSH_KEY_PATH)"
+        echo "File exists: $(if [ -f $(SSH_KEY_PATH) ]; then echo "YES"; else echo "NO"; fi)"
+        echo "File content sample:"
+        head -n 1 $(SSH_KEY_PATH)
+        echo "File permissions:"
+        stat -c '%A %a %n' $(SSH_KEY_PATH)
+      displayName: 'Final File Check'
 
       name: prepareKey
 
@@ -56,11 +61,13 @@ stages:
       SSH_KEY_PATH: $[ dependencies.Setup.outputs['AzureSetup.prepareKey.SSH_KEY_PATH'] ]
     steps:
     - bash: |
+        echo "=== VERIFYING KEY PATH ==="
         echo "Using SSH key at: $(SSH_KEY_PATH)"
         ls -la $(SSH_KEY_PATH)
-        echo "Key content (first line only):"
-        head -n 1 $(SSH_KEY_PATH)
+        echo "Key exists: $(if [ -f $(SSH_KEY_PATH) ]; then echo "YES"; else echo "NO"; fi)"
+        echo "First 50 chars: $(head -c 50 $(SSH_KEY_PATH))"
       displayName: 'Verify SSH Key'
+    
     
     - task: TerraformCLI@2
       inputs:
