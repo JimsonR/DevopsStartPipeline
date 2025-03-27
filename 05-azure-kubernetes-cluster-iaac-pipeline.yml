@@ -52,7 +52,7 @@ stages:
     steps:
     - bash: |
         echo "=== VERIFYING KEY PATH ==="
-        echo "##vso[task.setvariable variable=SSH_KEY_PATH;isOutput=true]$(Pipeline.Workspace)/cleaned_ssh_key.pub"
+        cat $(CLEAN_KEY_PATH)
 
         echo "Using SSH key at: $(SSH_KEY_PATH)"
         echo "Current directory: $(pwd)"
