@@ -5,6 +5,9 @@ trigger:
 pool:
   vmImage: ubuntu-latest  # Using Microsoft-hosted Ubuntu agent
 
+variables:
+  TF_WORKING_DIR: '$(System.DefaultWorkingDirectory)/configuration/iaac/azure/kubernetes'
+
 stages:
 - stage: Setup
   jobs:
