@@ -37,7 +37,7 @@ stages:
         ls -la $(CLEAN_KEY_PATH)
         echo "Key content:"
         cat $(CLEAN_KEY_PATH)
-        ls 
+        ls $(Pipeline.Workspace)
         # Set output variable (using the full path)
         echo "##vso[task.setvariable variable=SSH_KEY_PATH;isOutput=true]$(Pipeline.Workspace)/cleaned_ssh_key.pub"
       displayName: 'Prepare SSH Key'
