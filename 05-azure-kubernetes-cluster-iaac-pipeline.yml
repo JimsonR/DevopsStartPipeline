@@ -38,8 +38,8 @@ stages:
         echo "Key content:"
         cat $(CLEAN_KEY_PATH)
         
-        # Set output variable
-        echo "##vso[task.setvariable variable=SSH_KEY_PATH;isOutput=true]$(CLEAN_KEY_PATH)"
+        # Set output variable (using the full path)
+        echo "##vso[task.setvariable variable=SSH_KEY_PATH;isOutput=true]$(Pipeline.Workspace)/cleaned_ssh_key.pub"
       displayName: 'Prepare SSH Key'
       name: prepareKey
 
@@ -53,6 +53,9 @@ stages:
     - bash: |
         echo "=== VERIFYING KEY PATH ==="
         echo "Using SSH key at: $(SSH_KEY_PATH)"
+        echo "Current directory: $(pwd)"
+        echo "Pipeline workspace: $(Pipeline.Workspace)"
+        echo "Key file details:"
         ls -la $(SSH_KEY_PATH)
         echo "Key exists: $(if [ -f $(SSH_KEY_PATH) ]; then echo "YES"; else echo "NO"; fi)"
         echo "First 50 chars: $(head -c 50 $(SSH_KEY_PATH))"
