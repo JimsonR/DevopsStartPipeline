@@ -7,7 +7,7 @@ pool:
 
 variables:
   TF_WORKING_DIR: '$(System.DefaultWorkingDirectory)/configuration/iaac/azure/kubernetes'
-
+  CLEAN_KEY_PATH: '$(System.DefaultWorkingDirectory)/cleaned_ssh_key.pub'
 stages:
 - stage: Setup
   jobs:
@@ -60,20 +60,21 @@ stages:
         secureFile: 'azure_rsa.pub'
         retryCount: '5'
     - bash: |
-        # Read and clean the public key (remove comments, whitespace, newlines)
+        # Read and clean the public key
         PUBLIC_KEY_CONTENT=$(cat $(publickey.secureFilePath) | tr -d '\n' | awk '{$1=$1};1')
-        echo "##vso[task.setvariable variable=PUBLIC_KEY_CONTENT]${PUBLIC_KEY_CONTENT}"
         
-        # Create a clean key file in the working directory
-        mkdir -p $(TF_WORKING_DIR)
-        echo "${PUBLIC_KEY_CONTENT}" > $(TF_WORKING_DIR)/cleaned_ssh_key.pub
-        echo "##vso[task.setvariable variable=SSH_PUBLIC_KEY_PATH]$(TF_WORKING_DIR)/cleaned_ssh_key.pub"
+        # Write cleaned key to file
+        echo "$PUBLIC_KEY_CONTENT" > $(CLEAN_KEY_PATH)
         
         # Verify key format
         echo "SSH Public Key Content:"
-        cat $(SSH_PUBLIC_KEY_PATH)
-        ssh-keygen -l -f $(SSH_PUBLIC_KEY_PATH)
+        cat $(CLEAN_KEY_PATH)
+        ssh-keygen -l -f $(CLEAN_KEY_PATH)
+        
+        # Set output variable
+        echo "##vso[task.setvariable variable=SSH_PUBLIC_KEY_PATH;isOutput=true]$(CLEAN_KEY_PATH)"
       displayName: 'Process SSH public key'
+      name: processKey
 
 - stage: Terraform
   jobs:
@@ -99,7 +100,7 @@ stages:
         command: 'apply'
         workingDirectory: '$(System.DefaultWorkingDirectory)/configuration/iaac/azure/kubernetes'
         environmentServiceName: 'azure-resource-manager-service-connection'
-        commandOptions: '-auto-approve -var client_id=$(client_id) -var client_secret=$(client_secret) -var ssh_public_key="$(SSH_PUBLIC_KEY_PATH)" -var node_count=2 '
+        commandOptions: '-auto-approve -var client_id=$(client_id) -var client_secret=$(client_secret) -var ssh_public_key="$(SSH_KEY_PATH)" -var node_count=2'   
         allowTelemetryCollection: true
 
 
