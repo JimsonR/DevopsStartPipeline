@@ -56,7 +56,10 @@ stages:
       inputs:
         secureFile: 'azure_rsa.pub'
         retryCount: '5'
-
+    - bash: |
+        PUBliC_KEY=$(cat $(publickey.secureFilePath))
+        echo "##vso[task.setvariable variable=PUBLIC_KEY_CONTENT]$PUBLIC_KEY"
+      displayName: 'Read SSH public key content'
 
 - stage: Terraform
   jobs:
@@ -82,7 +85,7 @@ stages:
         command: 'apply'
         workingDirectory: '$(System.DefaultWorkingDirectory)/configuration/iaac/azure/kubernetes'
         environmentServiceName: 'azure-resource-manager-service-connection'
-        commandOptions: '-var client_id=$(client_id) -var client_secret=$(client_secret) -var ssh_public_key=$(publickey.secureFilePath)'
+        commandOptions: '-var client_id=$(client_id) -var client_secret=$(client_secret) -var ssh_public_key="$(PUBLIC_KEY_CONTENT)"'
         allowTelemetryCollection: true
 
 
