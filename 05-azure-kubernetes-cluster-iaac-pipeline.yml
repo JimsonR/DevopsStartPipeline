@@ -43,37 +43,39 @@ stages:
       displayName: 'Prepare SSH Key'
       name: prepareKey
 
-# - stage: Terraform
-#   dependsOn: Setup
-#   jobs:
-#   - job: TerraformJob
-#     variables:
-#       SSH_KEY_PATH: $[ dependencies.Setup.outputs['AzureSetup.prepareKey.SSH_KEY_PATH'] ]
-#     steps:
-#     - bash: |
-#         echo "=== VERIFYING KEY PATH ==="
-#         echo "Using SSH key at: $(SSH_KEY_PATH)"
-#         echo "Current directory: $(pwd)"
-#         echo "Pipeline workspace: $(Pipeline.Workspace)"
-#         echo "Key file details:"
-#         ls -la $(SSH_KEY_PATH)
-#         echo "Key exists: $(if [ -f $(SSH_KEY_PATH) ]; then echo "YES"; else echo "NO"; fi)"
-#         echo "First 50 chars: $(head -c 50 $(SSH_KEY_PATH))"
-#       displayName: 'Verify SSH Key'
-    
-#     - task: TerraformCLI@2
-#       inputs:
-#         command: 'init'
-#         workingDirectory: '$(TF_WORKING_DIR)'
-#         backendType: 'azurerm'
-#         backendServiceArm: 'azure-resource-manager-service-connection'
-#         backendAzureRmResourceGroupName: 'terraform-backend-rg'
-#         backendAzureRmStorageAccountName: 'storageaccjimsonxyz'
-#         backendAzureRmContainerName: 'storageaccjimsoncontainer'
-#         backendAzureRmKey: 'kubernetes-dev.tfstate'
+- stage: Terraform
+  dependsOn: Setup
+  jobs:
+  - job: TerraformJob
+    variables:
+      SSH_KEY_PATH: $[ dependencies.Setup.outputs['AzureSetup.prepareKey.SSH_KEY_PATH'] ]
+    steps:
+    - bash: |
+        echo "=== VERIFYING KEY PATH ==="
+        echo "##vso[task.setvariable variable=SSH_KEY_PATH;isOutput=true]$(Pipeline.Workspace)/cleaned_ssh_key.pub"
 
-#     - task: TerraformCLI@2
-#       inputs:
-#         command: 'apply'
-#         workingDirectory: '$(TF_WORKING_DIR)'
-#         commandOptions: '-auto-approve -var="client_id=$(client_id)" -var="client_secret=$(client_secret)" -var="ssh_public_key=$(SSH_KEY_PATH)" -var="node_count=$(node_count)"'
+        echo "Using SSH key at: $(SSH_KEY_PATH)"
+        echo "Current directory: $(pwd)"
+        echo "Pipeline workspace: $(Pipeline.Workspace)"
+        echo "Key file details:"
+        ls -la $(SSH_KEY_PATH)
+        echo "Key exists: $(if [ -f $(SSH_KEY_PATH) ]; then echo "YES"; else echo "NO"; fi)"
+        echo "First 50 chars: $(head -c 50 $(SSH_KEY_PATH))"
+      displayName: 'Verify SSH Key'
+    
+    - task: TerraformCLI@2
+      inputs:
+        command: 'init'
+        workingDirectory: '$(TF_WORKING_DIR)'
+        backendType: 'azurerm'
+        backendServiceArm: 'azure-resource-manager-service-connection'
+        backendAzureRmResourceGroupName: 'terraform-backend-rg'
+        backendAzureRmStorageAccountName: 'storageaccjimsonxyz'
+        backendAzureRmContainerName: 'storageaccjimsoncontainer'
+        backendAzureRmKey: 'kubernetes-dev.tfstate'
+
+    - task: TerraformCLI@2
+      inputs:
+        command: 'apply'
+        workingDirectory: '$(TF_WORKING_DIR)'
+        commandOptions: '-auto-approve -var="client_id=$(client_id)" -var="client_secret=$(client_secret)" -var="ssh_public_key=$(SSH_KEY_PATH)" -var="node_count=$(node_count)"'
