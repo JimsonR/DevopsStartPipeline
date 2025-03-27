@@ -6,7 +6,6 @@ pool:
 
 variables:
   TF_WORKING_DIR: '$(System.DefaultWorkingDirectory)/configuration/iaac/azure/kubernetes'
-  CLEAN_KEY_PATH: '$(System.DefaultWorkingDirectory)/cleaned_ssh_key.pub'
 
 stages:
 - stage: Setup
@@ -19,11 +18,7 @@ stages:
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
-          echo "Logging into Azure..."
-          az account show --output table
-          
-          # Resource group and storage account creation logic
-          # ... (keep your existing Azure setup code) ...
+          # Your existing Azure setup code
       displayName: 'Create Azure Resources'
 
     - task: DownloadSecureFile@1
@@ -33,36 +28,39 @@ stages:
         retryCount: '5'
     
     - bash: |
-        # Read and clean the public key
-        PUBLIC_KEY_CONTENT=$(cat $(publickey.secureFilePath) | tr -d '\n' | awk '{$1=$1};1')
+        # Create a directory for the SSH key
+        mkdir -p $(TF_WORKING_DIR)
         
-        # Write cleaned key to file
-        echo "$PUBLIC_KEY_CONTENT" > $(CLEAN_KEY_PATH)
+        # Copy the key to a known location
+        cp $(publickey.secureFilePath) $(TF_WORKING_DIR)/azure_rsa.pub
         
-        # Verify key format
+        # Clean any extra whitespace from the key
+        sed -i 's/^[ \t]*//;s/[ \t]*$//' $(TF_WORKING_DIR)/azure_rsa.pub
+        
+        # Verify the key looks correct
         echo "SSH Public Key Content:"
-        cat $(CLEAN_KEY_PATH)
-        ssh-keygen -l -f $(CLEAN_KEY_PATH)
+        cat $(TF_WORKING_DIR)/azure_rsa.pub
         
-        # Set both pipeline and output variable
-        echo "##vso[task.setvariable variable=SSH_PUBLIC_KEY_PATH]$(CLEAN_KEY_PATH)"
-        echo "##vso[task.setvariable variable=SSH_PUBLIC_KEY_PATH;isOutput=true]$(CLEAN_KEY_PATH)"
+        # Set the path as a variable
+        echo "##vso[task.setvariable variable=SSH_PUBLIC_KEY_PATH]$(TF_WORKING_DIR)/azure_rsa.pub"
       displayName: 'Process SSH public key'
-      name: processKey
+
+    - bash: |
+        echo "Key is definitely at: $(SSH_PUBLIC_KEY_PATH)"
+        ls -la $(TF_WORKING_DIR)
+        cat $(SSH_PUBLIC_KEY_PATH)
+      displayName: 'Verify Key Location Before Stage End'
 
 - stage: Terraform
-  dependsOn: Setup
   jobs:
   - job: TerraformJob
-    variables:
-      SSH_KEY_PATH: $[ dependencies.Setup.outputs['AzureSetup.processKey.SSH_PUBLIC_KEY_PATH'] ]
     steps:
     - bash: |
-        echo "Using SSH key at path: $(SSH_KEY_PATH)"
-        ls -la $(SSH_KEY_PATH)
-        cat $(SSH_KEY_PATH)
-      displayName: 'Verify SSH Key Path'
-    
+        echo "Verifying key path in Terraform stage: $(SSH_PUBLIC_KEY_PATH)"
+        ls -la $(TF_WORKING_DIR)
+        cat $(TF_WORKING_DIR)/azure_rsa.pub || true
+      displayName: 'Verify Key Still Exists'
+
     - task: TerraformCLI@2
       inputs:
         command: 'init'
@@ -79,9 +77,4 @@ stages:
         command: 'apply'
         workingDirectory: '$(TF_WORKING_DIR)'
         environmentServiceName: 'azure-resource-manager-service-connection'
-        commandOptions: '-auto-approve -var client_id=$(client_id) -var client_secret=$(client_secret) -var ssh_public_key="$(SSH_KEY_PATH)" -var node_count=2'
-        
-    - bash: |
-        rm -f $(CLEAN_KEY_PATH)
-      displayName: 'Clean up SSH key'
-      condition: always()
+        commandOptions: '-auto-approve -var client_id=$(client_id) -var client_secret=$(client_secret) -var ssh_public_key="$(TF_WORKING_DIR)/azure_rsa.pub" -var node_count=2'
