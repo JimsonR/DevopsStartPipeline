@@ -44,7 +44,8 @@ stages:
         ls -la $(SSH_KEY_PATH)
         echo "File content:"
         cat $(SSH_KEY_PATH)
-      displayName: 'Debug File Paths' 
+      displayName: 'Debug File Paths'
+
       name: prepareKey
 
 - stage: Terraform
@@ -65,7 +66,13 @@ stages:
       inputs:
         command: 'init'
         workingDirectory: '$(TF_WORKING_DIR)'
-        # ... your backend configuration ...
+        backendType: 'azurerm'
+        backendServiceArm: 'azure-resource-manager-service-connection'
+        backendAzureRmResourceGroupName: 'terraform-backend-rg'
+        backendAzureRmStorageAccountName: 'storageaccjimsonxyz'
+        backendAzureRmContainerName: 'storageaccjimsoncontainer'
+        backendAzureRmKey: 'kubernetes-dev.tfstate'
+
 
     - task: TerraformCLI@2
       inputs:
