@@ -48,7 +48,16 @@ stages:
         echo "##vso[task.setvariable variable=SSH_PUBLIC_KEY_PATH]$(CLEAN_KEY_PATH)"
         echo "##vso[task.setvariable variable=SSH_PUBLIC_KEY_PATH;isOutput=true]$(CLEAN_KEY_PATH)"
       displayName: 'Process SSH public key'
+    - bash: |
+          echo "=== RAW KEY CONTENT ==="
+          cat $(publickey.secureFilePath)
+          echo -e "\n=== HEX DUMP ==="
+          hexdump -C $(publickey.secureFilePath) | head -n 5
+          echo -e "\n=== KEY VALIDATION ==="
+          ssh-keygen -l -f $(publickey.secureFilePath)
+      displayName: 'Inspect SSH Key'
       name: processKey
+
 
 - stage: Terraform
   dependsOn: Setup
