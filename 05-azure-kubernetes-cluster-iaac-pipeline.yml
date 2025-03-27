@@ -25,46 +25,50 @@ stages:
           exit 1
         fi
         
-        # Create cleaned version with proper Unix line endings
-        sed 's/\r$//' $(publickey.secureFilePath) > $(CLEAN_KEY_PATH)
-        chmod 644 $(CLEAN_KEY_PATH)
+        # Create cleaned version in the agent's temp directory
+        TEMP_KEY_PATH="$(Agent.TempDirectory)/cleaned_ssh_key.pub"
+        sed 's/\r$//' $(publickey.secureFilePath) > $TEMP_KEY_PATH
+        chmod 644 $TEMP_KEY_PATH
         
-        # Upload cleaned key as pipeline artifact
-        echo "##vso[artifact.upload containerfolder=sshkey;artifactname=cleaned_key]$(CLEAN_KEY_PATH)"
+        # Set output variable with the exact path
+        echo "##vso[task.setvariable variable=SSH_KEY_PATH;isOutput=true]$TEMP_KEY_PATH"
+        echo "Key prepared at: $TEMP_KEY_PATH"
       displayName: 'Prepare SSH Key'
+    - bash: |
+        echo "=== ENVIRONMENT DEBUG ==="
+        echo "Agent.TempDirectory: $(Agent.TempDirectory)"
+        echo "Working directory: $(System.DefaultWorkingDirectory)"
+        echo "All files in temp dir:"
+        ls -la $(Agent.TempDirectory)
+        echo "Key file details:"
+        ls -la $(SSH_KEY_PATH)
+        echo "File content:"
+        cat $(SSH_KEY_PATH)
+      displayName: 'Debug File Paths' 
+      name: prepareKey
 
 - stage: Terraform
   dependsOn: Setup
   jobs:
   - job: TerraformJob
+    variables:
+      SSH_KEY_PATH: $[ dependencies.Setup.outputs['AzureSetup.prepareKey.SSH_KEY_PATH'] ]
     steps:
-    - download: current
-      artifact: cleaned_key
-      patterns: '**/cleaned_ssh_key.pub'
-      
     - bash: |
-        SSH_KEY_PATH=$(Pipeline.Workspace)/cleaned_key/cleaned_ssh_key.pub
-        echo "##vso[task.setvariable variable=SSH_KEY_PATH]$SSH_KEY_PATH"
-        echo "Using SSH key at: $SSH_KEY_PATH"
-        ls -la $SSH_KEY_PATH
+        echo "Using SSH key at: $(SSH_KEY_PATH)"
+        ls -la $(SSH_KEY_PATH)
         echo "Key content (first line only):"
-        head -n 1 $SSH_KEY_PATH
-      displayName: 'Prepare Key Path'
+        head -n 1 $(SSH_KEY_PATH)
+      displayName: 'Verify SSH Key'
     
     - task: TerraformCLI@2
       inputs:
         command: 'init'
         workingDirectory: '$(TF_WORKING_DIR)'
-        backendType: 'azurerm'
-        backendServiceArm: 'azure-resource-manager-service-connection'
-        backendAzureRmResourceGroupName: 'terraform-backend-rg'
-        backendAzureRmStorageAccountName: 'storageaccjimsonxyz'
-        backendAzureRmContainerName: 'storageaccjimsoncontainer'
-        backendAzureRmKey: 'kubernetes-dev.tfstate'
+        # ... your backend configuration ...
 
     - task: TerraformCLI@2
       inputs:
         command: 'apply'
         workingDirectory: '$(TF_WORKING_DIR)'
-        environmentServiceName: 'azure-resource-manager-service-connection'
         commandOptions: '-auto-approve -var="client_id=$(client_id)" -var="client_secret=$(client_secret)" -var="ssh_public_key=$(SSH_KEY_PATH)" -var="node_count=$(node_count)"'
