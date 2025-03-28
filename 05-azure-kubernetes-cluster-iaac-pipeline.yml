@@ -19,31 +19,28 @@ stages:
         secureFile: 'azure_rsa.pub'
     
     - bash: |
-        # Create directory if it doesn't exist
-        mkdir -p $(Pipeline.Workspace)
+        # Create directory in pipeline workspace
+        mkdir -p $(Pipeline.Workspace)/sshkeys
         
-        # Validate and clean the key file
-        if ! ssh-keygen -l -f $(publickey.secureFilePath); then
+        # Clean and validate the key
+        PUBLIC_KEY_CONTENT=$(cat $(publickey.secureFilePath) | tr -d '\r\n' | awk '{$1=$1};1')
+        
+        # Verify key format
+        if [[ ! "$PUBLIC_KEY_CONTENT" =~ ^ssh-rsa\ [A-Za-z0-9+/]+ ]]; then
           echo "##vso[task.logissue type=error]Invalid SSH key format"
           exit 1
         fi
         
-        # Create cleaned version in pipeline workspace
-        sed 's/\r$//' $(publickey.secureFilePath) > $(CLEAN_KEY_PATH)
-        chmod 644 $(CLEAN_KEY_PATH)
+        # Save to file (for debugging)
+        echo "$PUBLIC_KEY_CONTENT" > $(Pipeline.Workspace)/sshkeys/cleaned_key.pub
         
-        # Verify the cleaned file
-        echo "Key created at: $(CLEAN_KEY_PATH)"
-        ls -la $(CLEAN_KEY_PATH)
-        echo "Key content:"
-        cat $(CLEAN_KEY_PATH)
-        echo $(Pipeline.Workspace)
-        # Set output variable (using the full path)
-        echo "##vso[task.setvariable variable=SSH_KEY_PATH;isOutput=true]$(Pipeline.Workspace)/cleaned_ssh_key.pub"
-        CONTENT=$(cat $(publickey.secureFilePath) | awk 'NR==1 {print $1" "$2}')
-        echo "##vso[task.setvariable variable=PUBLIC_KEY_CONTENT;isOutput=true]$CONTENT"
-        echo $(CONTENT)
-     
+        # Set both output variables
+        echo "##vso[task.setvariable variable=PUBLIC_KEY_CONTENT;isOutput=true]$PUBLIC_KEY_CONTENT"
+        echo "##vso[task.setvariable variable=SSH_KEY_PATH;isOutput=true]$(Pipeline.Workspace)/sshkeys/cleaned_key.pub"
+        
+        # Debug output
+        echo "Key content stored (first 30 chars): ${PUBLIC_KEY_CONTENT:0:30}..."
+        echo "Key file created at: $(Pipeline.Workspace)/sshkeys/cleaned_key.pub"
       displayName: 'Prepare SSH Key'
       name: prepareKey
 
@@ -52,21 +49,18 @@ stages:
   jobs:
   - job: TerraformJob
     variables:
-      SSH_KEY_PATH: $[ dependencies.Setup.outputs['AzureSetup.prepareKey.SSH_KEY_PATH'] ]
-      SSH_KEY: $[ stageDependencies.Setup.ProcessKey.outputs['setKeyVar.PUBLIC_KEY_CONTENT'] ]
+      SSH_KEY_CONTENT: $[ dependencies.Setup.outputs['AzureSetup.prepareKey.PUBLIC_KEY_CONTENT'] ]
     steps:
     - bash: |
-        echo "=== VERIFYING KEY PATH ==="
-
-        cat $(Pipeline.Workspace)/cleaned_ssh_key.pub
-
-        echo "Using SSH key: $(SSH_KEY)"
-        echo "Current directory: $(pwd)"
-        echo "Pipeline workspace: $(Pipeline.Workspace)"
-        echo "Key file details:"
-        ls -la $(SSH_KEY_PATH)
-        echo "Key exists: $(if [ -f $(SSH_KEY_PATH) ]; then echo "YES"; else echo "NO"; fi)"
-        echo "First 50 chars: $(head -c 50 $(SSH_KEY_PATH))"
+        echo "=== SSH KEY VERIFICATION ==="
+        echo "Using key content directly:"
+        echo "${SSH_KEY_CONTENT:0:30}..."  # Show first 30 chars
+        
+        # Verify the key format again
+        if [[ ! "$SSH_KEY_CONTENT" =~ ^ssh-rsa\ [A-Za-z0-9+/]+ ]]; then
+          echo "##vso[task.logissue type=error]Invalid SSH key format in Terraform stage"
+          exit 1
+        fi
       displayName: 'Verify SSH Key'
     
     - task: TerraformCLI@2
