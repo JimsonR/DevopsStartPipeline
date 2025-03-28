@@ -9,17 +9,19 @@ variables:
   CLEAN_KEY_PATH: '$(Pipeline.Workspace)/sshkeys/cleaned_key.pub'
 
 stages:
-- stage: Setup
+- stage: Deploy
   jobs:
-  - job: AzureSetup
+  - job: TerraformDeploy
     steps:
+    # 1. Download the SSH key
     - task: DownloadSecureFile@1
       name: publickey
       inputs:
         secureFile: 'azure_rsa.pub'
     
+    # 2. Process the SSH key
     - bash: |
-        # Create directory in pipeline workspace
+        # Create directory for the key
         mkdir -p $(Pipeline.Workspace)/sshkeys
         
         # Clean and validate the key
@@ -31,40 +33,27 @@ stages:
           exit 1
         fi
         
-        # Save to file (for debugging)
+        # Save to file (for reference)
         echo "$PUBLIC_KEY_CONTENT" > $(CLEAN_KEY_PATH)
         
-        # Set both output variables
-        echo "##vso[task.setvariable variable=PUBLIC_KEY_CONTENT;isOutput=true]$PUBLIC_KEY_CONTENT"
-        echo "##vso[task.setvariable variable=SSH_KEY_PATH;isOutput=true]$(CLEAN_KEY_PATH)"
+        # Set variable for Terraform
+        echo "##vso[task.setvariable variable=SSH_PUBLIC_KEY]$PUBLIC_KEY_CONTENT"
         
         # Debug output
-        echo "Key content stored (first 30 chars): ${PUBLIC_KEY_CONTENT:0:30}..."
+        echo "Using SSH key (first 30 chars): ${PUBLIC_KEY_CONTENT:0:30}..."
         echo "Key file created at: $(CLEAN_KEY_PATH)"
         ls -la $(CLEAN_KEY_PATH)
       displayName: 'Prepare SSH Key'
-      name: prepareKey
 
-- stage: Terraform
-  dependsOn: Setup
-  jobs:
-  - job: TerraformJob
-    variables:
-      SSH_KEY_CONTENT: $[ dependencies.Setup.outputs['AzureSetup.prepareKey.PUBLIC_KEY_CONTENT'] ]
-      SSH_KEY_PATH: $[ dependencies.Setup.outputs['AzureSetup.prepareKey.SSH_KEY_PATH'] ]
-    steps:
+    # 3. Verify key is available
     - bash: |
         echo "=== SSH KEY VERIFICATION ==="
-        echo "Using key content directly:"
-        echo "${SSH_KEY_CONTENT:0:30}..."  # Show first 30 chars
-        echo "Key path: $SSH_KEY_PATH"
-        echo "Key file exists: $(if [ -f "$SSH_KEY_PATH" ]; then echo "YES"; else echo "NO"; fi)"
-        echo "Current directory: $(pwd)"
-        echo "Pipeline workspace: $(Pipeline.Workspace)"
-        echo "Key file details:"
-        ls -la $(Pipeline.Workspace)/sshkeys/
+        echo "Using key content:"
+        echo "$(SSH_PUBLIC_KEY:0:30)..."  # Show first 30 chars
+        echo "Key file exists: $(if [ -f "$(CLEAN_KEY_PATH)" ]; then echo "YES"; else echo "NO"; fi)"
       displayName: 'Verify SSH Key'
-    
+
+    # 4. Terraform Init
     - task: TerraformCLI@2
       inputs:
         command: 'init'
@@ -76,8 +65,9 @@ stages:
         backendAzureRmContainerName: 'storageaccjimsoncontainer'
         backendAzureRmKey: 'kubernetes-dev.tfstate'
 
+    # 5. Terraform Apply
     - task: TerraformCLI@2
       inputs:
         command: 'apply'
         workingDirectory: '$(TF_WORKING_DIR)'
-        commandOptions: '-auto-approve -var="client_id=$(client_id)" -var="client_secret=$(client_secret)" -var="ssh_public_key=$(SSH_KEY_CONTENT)" -var="node_count=$(node_count)"'
+        commandOptions: '-auto-approve -var="client_id=$(client_id)" -var="client_secret=$(client_secret)" -var="ssh_public_key=$(SSH_PUBLIC_KEY)" -var="node_count=$(node_count)"'
