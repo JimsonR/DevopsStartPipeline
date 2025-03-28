@@ -70,4 +70,6 @@ stages:
       inputs:
         command: 'apply'
         workingDirectory: '$(TF_WORKING_DIR)'
+        environmentServiceName: 'azure-resource-manager-service-connection'
         commandOptions: '-auto-approve -var="client_id=$(client_id)" -var="client_secret=$(client_secret)" -var="ssh_public_key=$(SSH_PUBLIC_KEY)" -var="node_count=$(node_count)"'
+        allowTelemetryCollection: true
