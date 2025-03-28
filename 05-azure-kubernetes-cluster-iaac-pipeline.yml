@@ -40,6 +40,9 @@ stages:
         echo $(Pipeline.Workspace)
         # Set output variable (using the full path)
         echo "##vso[task.setvariable variable=SSH_KEY_PATH;isOutput=true]$(Pipeline.Workspace)/cleaned_ssh_key.pub"
+        CONTENT=$(cat $(publickey.secureFilePath) | awk 'NR==1 {print $1" "$2}')
+        echo "##vso[task.setvariable variable=PUBLIC_KEY_CONTENT;isOutput=true]$CONTENT"
+     
       displayName: 'Prepare SSH Key'
       name: prepareKey
 
@@ -49,12 +52,14 @@ stages:
   - job: TerraformJob
     variables:
       SSH_KEY_PATH: $[ dependencies.Setup.outputs['AzureSetup.prepareKey.SSH_KEY_PATH'] ]
+      SSH_KEY: $[ stageDependencies.Setup.ProcessKey.outputs['setKeyVar.PUBLIC_KEY_CONTENT'] ]
     steps:
     - bash: |
         echo "=== VERIFYING KEY PATH ==="
+
         cat $(Pipeline.Workspace)/cleaned_ssh_key.pub
 
-        echo "Using SSH key at: $(SSH_KEY_PATH)"
+        echo "Using SSH key: $(SSH_KEY)"
         echo "Current directory: $(pwd)"
         echo "Pipeline workspace: $(Pipeline.Workspace)"
         echo "Key file details:"
