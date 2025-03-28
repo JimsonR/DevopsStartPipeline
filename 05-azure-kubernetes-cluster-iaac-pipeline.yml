@@ -42,6 +42,7 @@ stages:
         echo "##vso[task.setvariable variable=SSH_KEY_PATH;isOutput=true]$(Pipeline.Workspace)/cleaned_ssh_key.pub"
         CONTENT=$(cat $(publickey.secureFilePath) | awk 'NR==1 {print $1" "$2}')
         echo "##vso[task.setvariable variable=PUBLIC_KEY_CONTENT;isOutput=true]$CONTENT"
+        echo $(CONTENT)
      
       displayName: 'Prepare SSH Key'
       name: prepareKey
