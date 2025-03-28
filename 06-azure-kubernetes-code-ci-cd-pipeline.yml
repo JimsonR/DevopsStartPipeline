@@ -57,7 +57,7 @@ stages:
         action: 'deploy'
         kubernetesServiceConnection: 'azure-kuberentes-connection'
         namespace: 'default'
-        manifests: '$(System.ArtifactsDirectory)/confuguration/kubernetes/deployment.yaml'
+        manifests: '$(System.ArtifactsDirectory)/configuration/kubernetes/deployment.yaml'
         containers: 'jimsonrats/currency-exchange-devops:$(tag)'
 
 
