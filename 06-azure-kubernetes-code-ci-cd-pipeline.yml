@@ -6,7 +6,7 @@ resources:
 
 
 variables:
-  tag: 74  # '$(Build.BuildId)'
+  tag: '$(Build.BuildId)' # 74
 
 stages:
 - stage: Build
